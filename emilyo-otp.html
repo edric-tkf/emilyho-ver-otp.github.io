@@ -1,0 +1,317 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Verify your number — Emily Ho GCB</title>
+
+  <!-- Firebase SDKs -->
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Rethink+Sans:wght@400;600;700;800&display=swap');
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: 'Rethink Sans', sans-serif;
+      background: #1c1916;
+      color: #fff;
+      min-height: 100vh;
+      display: flex; align-items: center; justify-content: center;
+      padding: 24px;
+    }
+    .box {
+      width: min(420px, 100%);
+      display: flex; flex-direction: column; gap: 0;
+    }
+    .logo {
+      width: 60px; height: 60px; border-radius: 12px;
+      object-fit: cover; object-position: top center;
+      border: 2px solid rgba(184,137,46,0.5);
+      margin: 0 auto 16px; display: block;
+    }
+    h1 { font-size: 1.3rem; font-weight: 800; text-align: center; margin-bottom: 4px; letter-spacing: -0.02em; }
+    .sub { font-size: 0.82rem; color: rgba(255,255,255,0.38); text-align: center; margin-bottom: 28px; line-height: 1.5; }
+    label { font-size: 0.7rem; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: rgba(255,255,255,0.4); margin-bottom: 6px; display: block; }
+    input[type=text], input[type=tel] {
+      width: 100%; padding: 12px 14px;
+      background: rgba(255,255,255,0.07); border: 1px solid rgba(255,255,255,0.12);
+      border-radius: 10px; color: #fff;
+      font-family: 'Rethink Sans', sans-serif; font-size: 1rem;
+      outline: none; margin-bottom: 14px; transition: border-color 0.18s;
+    }
+    input:focus { border-color: #b8892e; }
+    input::placeholder { color: rgba(255,255,255,0.22); }
+    .phone-row { display: flex; gap: 8px; }
+    .prefix {
+      padding: 12px 12px; background: rgba(255,255,255,0.07);
+      border: 1px solid rgba(255,255,255,0.12); border-radius: 10px;
+      color: rgba(255,255,255,0.5); font-size: 1rem; white-space: nowrap;
+      flex-shrink: 0; margin-bottom: 14px; line-height: 1.2;
+    }
+    .phone-row input { flex: 1; }
+    button {
+      width: 100%; padding: 13px;
+      background: #b8892e; color: #fff; border: none; border-radius: 10px;
+      font-family: 'Rethink Sans', sans-serif; font-size: 1rem; font-weight: 800;
+      cursor: pointer; transition: opacity 0.18s; margin-top: 4px;
+    }
+    button:hover:not(:disabled) { opacity: 0.85; }
+    button:disabled { opacity: 0.4; cursor: not-allowed; }
+    .back-btn {
+      background: none; border: none; color: rgba(255,255,255,0.35);
+      font-size: 0.8rem; text-decoration: underline; margin-top: 12px;
+      text-underline-offset: 3px; cursor: pointer; width: 100%; text-align: center;
+    }
+    .back-btn:hover { color: rgba(255,255,255,0.65); }
+    .otp-row { display: flex; gap: 8px; justify-content: center; margin-bottom: 14px; }
+    .otp-digit {
+      width: 52px; height: 60px;
+      background: rgba(255,255,255,0.07); border: 1px solid rgba(255,255,255,0.14);
+      border-radius: 10px; color: #fff;
+      font-family: 'Rethink Sans', sans-serif; font-size: 1.5rem; font-weight: 800;
+      text-align: center; outline: none; transition: border-color 0.18s;
+    }
+    .otp-digit:focus { border-color: #b8892e; }
+    .msg { margin-top: 12px; padding: 10px 14px; border-radius: 8px; font-size: 0.84rem; text-align: center; line-height: 1.4; }
+    .msg.error   { background: rgba(176,48,48,0.18); border: 1px solid rgba(176,48,48,0.3); color: #f08080; }
+    .msg.success { background: rgba(34,197,94,0.14); border: 1px solid rgba(34,197,94,0.3); color: #86efac; }
+    .divider { height: 1px; background: rgba(255,255,255,0.08); margin: 22px 0; }
+    .admin-link { font-size: 0.7rem; color: rgba(255,255,255,0.18); background: none; border: none; cursor: pointer; font-family: 'Rethink Sans', sans-serif; text-decoration: underline; text-underline-offset: 3px; transition: color 0.18s; display: block; margin: 0 auto; }
+    .admin-link:hover { color: rgba(255,255,255,0.4); }
+    .admin-row { display: flex; gap: 8px; justify-content: center; margin-top: 10px; }
+    .admin-input { width: 100px; padding: 9px 12px; background: rgba(255,255,255,0.07); border: 1px solid rgba(255,255,255,0.14); border-radius: 8px; color: #fff; font-family: 'Rethink Sans', sans-serif; font-size: 1rem; text-align: center; outline: none; letter-spacing: 0.3em; transition: border-color 0.18s; }
+    .admin-input:focus { border-color: #b8892e; }
+    .admin-btn { width: auto; padding: 9px 16px; font-size: 0.85rem; margin-top: 0; }
+    #recaptcha-container { margin-bottom: 10px; }
+    .step { display: none; }
+    .step.active { display: block; }
+  </style>
+</head>
+<body>
+
+<div class="box">
+  <img src="https://realstarpremier.com/attachments/agent/R054NUlMVENxclZmVHBpYWRSeWRYdz09.jpg" alt="Emily Ho" class="logo" />
+  <h1>Emily Ho · GCB Listings</h1>
+
+  <!-- STEP 1: Name + Phone -->
+  <div class="step active" id="step-form">
+    <p class="sub">Enter your name and Singapore mobile number to receive a verification code.</p>
+    <label>Your Name</label>
+    <input type="text" id="inp-name" placeholder="e.g. Tan Wei Ming" />
+    <label>Singapore Mobile Number</label>
+    <div class="phone-row">
+      <span class="prefix">🇸🇬 +65</span>
+      <input type="tel" id="inp-phone" placeholder="9123 4567" maxlength="9" inputmode="numeric" />
+    </div>
+    <div id="recaptcha-container"></div>
+    <button id="btn-send">Send OTP →</button>
+    <div id="msg-form" class="msg" style="display:none"></div>
+
+    <div class="divider"></div>
+    <button class="admin-link" id="show-admin-link">Admin access</button>
+    <div id="admin-section" style="display:none">
+      <div class="admin-row">
+        <input type="password" class="admin-input" id="admin-pin" placeholder="••••" maxlength="4" inputmode="numeric" />
+        <button class="admin-btn" id="btn-admin-enter">Enter</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- STEP 2: OTP Entry -->
+  <div class="step" id="step-otp">
+    <p class="sub" id="otp-sub">Enter the 6-digit code sent to your number.</p>
+    <label style="text-align:center;display:block;margin-bottom:12px">Verification Code</label>
+    <div class="otp-row">
+      <input class="otp-digit" maxlength="1" inputmode="numeric" />
+      <input class="otp-digit" maxlength="1" inputmode="numeric" />
+      <input class="otp-digit" maxlength="1" inputmode="numeric" />
+      <input class="otp-digit" maxlength="1" inputmode="numeric" />
+      <input class="otp-digit" maxlength="1" inputmode="numeric" />
+      <input class="otp-digit" maxlength="1" inputmode="numeric" />
+    </div>
+    <button id="btn-verify">Verify & Enter →</button>
+    <button class="back-btn" id="btn-back">← Change number</button>
+    <div id="msg-otp" class="msg" style="display:none"></div>
+  </div>
+</div>
+
+<script>
+// ── Firebase config — your project ────────────────────────────────────────────
+const FIREBASE_CONFIG = {
+  apiKey:            "AIzaSyDl8vRwx-bRttBipdZpjfT5onlfzOu6w9M",
+  authDomain:        "et-core-f7d05.firebaseapp.com",
+  databaseURL:       "https://et-core-f7d05-default-rtdb.asia-southeast1.firebasedatabase.app",
+  projectId:         "et-core-f7d05",
+  storageBucket:     "et-core-f7d05.firebasestorage.app",
+  messagingSenderId: "960940896695",
+  appId:             "1:960940896695:web:4304905d835a8823afb832",
+};
+const ADMIN_PIN = "2809";
+
+// ── Init Firebase ─────────────────────────────────────────────────────────────
+firebase.initializeApp(FIREBASE_CONFIG);
+const auth = firebase.auth();
+
+// ── State ─────────────────────────────────────────────────────────────────────
+let confirmationResult = null;
+let recaptchaVerifier  = null;
+let userName           = "";
+let userPhone          = "";
+
+// ── Helpers ───────────────────────────────────────────────────────────────────
+function showMsg(el, text, type) {
+  el.textContent = text;
+  el.className   = `msg ${type}`;
+  el.style.display = "block";
+}
+function hideMsg(el) { el.style.display = "none"; }
+
+function switchStep(to) {
+  document.querySelectorAll(".step").forEach(s => s.classList.remove("active"));
+  document.getElementById(`step-${to}`).classList.add("active");
+}
+
+// postMessage success back to the parent iframe
+function notifyParent(name, phone) {
+  const payload = { type: "GCB_AUTH_SUCCESS", name, phone };
+  // Try opener (popup mode) first, then parent (iframe postMessage mode)
+  if (window.opener) {
+    window.opener.postMessage(payload, "*");
+    window.close();
+  } else {
+    window.parent.postMessage(payload, "*");
+  }
+}
+
+// ── reCAPTCHA setup ───────────────────────────────────────────────────────────
+function setupRecaptcha() {
+  if (recaptchaVerifier) return;
+  recaptchaVerifier = new firebase.auth.RecaptchaVerifier("recaptcha-container", {
+    size: "normal", // visible reCAPTCHA — works reliably on a real page
+    callback: () => {
+      // reCAPTCHA solved — auto-enable send button
+      document.getElementById("btn-send").disabled = false;
+    },
+    "expired-callback": () => {
+      showMsg(document.getElementById("msg-form"), "reCAPTCHA expired. Please tick it again.", "error");
+    }
+  });
+  recaptchaVerifier.render();
+  // Disable send until reCAPTCHA is ticked
+  document.getElementById("btn-send").disabled = true;
+}
+
+window.addEventListener("load", setupRecaptcha);
+
+// ── OTP digit inputs ──────────────────────────────────────────────────────────
+const digits = document.querySelectorAll(".otp-digit");
+digits.forEach((inp, i) => {
+  inp.addEventListener("input", e => {
+    const val = e.target.value.replace(/\D/g, "").slice(-1);
+    e.target.value = val;
+    if (val && i < digits.length - 1) digits[i + 1].focus();
+  });
+  inp.addEventListener("keydown", e => {
+    if (e.key === "Backspace" && !inp.value && i > 0) digits[i - 1].focus();
+  });
+});
+function getOtp() { return Array.from(digits).map(d => d.value).join(""); }
+function clearOtp() { digits.forEach(d => { d.value = ""; }); digits[0].focus(); }
+
+// ── Send OTP ──────────────────────────────────────────────────────────────────
+document.getElementById("btn-send").addEventListener("click", async () => {
+  const msgEl = document.getElementById("msg-form");
+  hideMsg(msgEl);
+  userName  = document.getElementById("inp-name").value.trim();
+  userPhone = document.getElementById("inp-phone").value.replace(/\s/g, "");
+
+  if (!userName)                    return showMsg(msgEl, "Please enter your name.", "error");
+  if (!/^\d{8}$/.test(userPhone))   return showMsg(msgEl, "Please enter a valid 8-digit Singapore number.", "error");
+
+  const btn = document.getElementById("btn-send");
+  btn.disabled   = true;
+  btn.textContent = "Sending…";
+
+  try {
+    const e164 = `+65${userPhone}`;
+    confirmationResult = await auth.signInWithPhoneNumber(e164, recaptchaVerifier);
+    document.getElementById("otp-sub").textContent = `Code sent to +65 ${userPhone}. Valid for 5 minutes.`;
+    switchStep("otp");
+  } catch (err) {
+    console.error(err);
+    showMsg(msgEl, err.message || "Failed to send OTP. Please try again.", "error");
+    // Reset reCAPTCHA on error
+    recaptchaVerifier.clear();
+    recaptchaVerifier = null;
+    setupRecaptcha();
+    btn.textContent = "Send OTP →";
+    // btn re-enable happens when reCAPTCHA is ticked again
+  }
+});
+
+// ── Verify OTP ────────────────────────────────────────────────────────────────
+document.getElementById("btn-verify").addEventListener("click", async () => {
+  const msgEl = document.getElementById("msg-otp");
+  hideMsg(msgEl);
+  const code = getOtp();
+  if (code.length < 6) return showMsg(msgEl, "Please enter the full 6-digit code.", "error");
+
+  const btn = document.getElementById("btn-verify");
+  btn.disabled   = true;
+  btn.textContent = "Verifying…";
+
+  try {
+    await confirmationResult.confirm(code);
+
+    // Log to Firebase Realtime DB (optional, best-effort)
+    try {
+      if (firebase.database) {
+        await firebase.database().ref("gcb_visitors").push({
+          name:      userName,
+          phone:     `+65${userPhone}`,
+          timestamp: new Date().toISOString(),
+        });
+      }
+    } catch (_) {}
+
+    showMsg(msgEl, "Verified! Opening listings…", "success");
+    setTimeout(() => notifyParent(userName, `+65${userPhone}`), 800);
+  } catch (err) {
+    showMsg(msgEl, "Incorrect code. Please try again.", "error");
+    clearOtp();
+    btn.disabled   = false;
+    btn.textContent = "Verify & Enter →";
+  }
+});
+
+// ── Back button ───────────────────────────────────────────────────────────────
+document.getElementById("btn-back").addEventListener("click", () => {
+  switchStep("form");
+  clearOtp();
+  hideMsg(document.getElementById("msg-otp"));
+});
+
+// ── Admin PIN ─────────────────────────────────────────────────────────────────
+document.getElementById("show-admin-link").addEventListener("click", () => {
+  document.getElementById("admin-section").style.display = "block";
+  document.getElementById("show-admin-link").style.display = "none";
+});
+document.getElementById("btn-admin-enter").addEventListener("click", () => {
+  const pin = document.getElementById("admin-pin").value;
+  if (pin === ADMIN_PIN) {
+    notifyParent("Admin", "admin");
+  } else {
+    showMsg(document.getElementById("msg-form"), "Incorrect PIN.", "error");
+  }
+});
+document.getElementById("admin-pin").addEventListener("keydown", e => {
+  if (e.key === "Enter") document.getElementById("btn-admin-enter").click();
+});
+</script>
+
+<!-- Firebase Database SDK (optional, for visitor logging) -->
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js"></script>
+
+</body>
+</html>
